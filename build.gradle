@@ -19,11 +19,28 @@ repositories {
 }
 
 dependencies {
+    // Spring Boot Starter (kept your version)
     implementation 'org.springframework.boot:spring-boot-starter'
+
+    // --- Added for Selenium setup ---
+    // 1. Selenium Java dependency (version 4.38.0 as requested)
+    implementation 'org.seleniumhq.selenium:selenium-java:4.38.0'
+
+    // 2. WebDriverManager dependency (Bonigarcia) for runtime driver installation
+    implementation 'io.github.bonigarcia:webdrivermanager:5.8.0'
+    // ---------------------------------
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// --- Added to easily run the main application class ---
+tasks.register('run', JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    // This must match your main class in the Java file
+    mainClass = 'com.example.SeleniumIssueReproducer'
 }
