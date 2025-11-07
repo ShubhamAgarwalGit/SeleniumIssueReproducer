@@ -1,10 +1,10 @@
 
-Sample Stack trace for the issue (Chrome browser) reproduction:
+**Sample Stack trace for the issue (Chrome browser) reproduction**:
 
-Expectation Timout shouldn't be negative
+**Expectation** Timout shouldn't be negative
 Timed out receiving message from renderer: -0.010 
 
-Summary:
+**Summary**:
 When using driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(1)) to set an extremely aggressive page load timeout, 
 the resulting TimeoutException often contains a bizarre and incorrect negative time value in the error message, such as -0.006.
 This suggests a low-level race condition or calculation error within the driver's handling of the page load timeout event,
