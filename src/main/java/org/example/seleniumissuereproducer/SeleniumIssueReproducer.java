@@ -1,83 +1,85 @@
 package org.example.seleniumissuereproducer;
 
-
 import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.edge.EdgeOptions;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 
 import java.time.Duration;
 
-/**
- * Minimal Spring Boot application to reproduce a Selenium TimeoutException issue.
- * This class implements CommandLineRunner to execute the Selenium logic immediately
- * after the Spring context initializes.
- */
 @SpringBootApplication
-public class SeleniumIssueReproducer implements CommandLineRunner {
+public class SeleniumIssueReproducer {
 
     public static void main(String[] args) {
         SpringApplication.run(SeleniumIssueReproducer.class, args);
     }
 
-    @Override
-    public void run(String... args) {
-        WebDriver driver = null;
-        try {
+    @Bean
+    public CommandLineRunner run() {
+        return args -> {
             System.out.println("--- Starting Issue Reproducer ---");
 
-            // 1. Setup ChromeDriver using WebDriverManager (Bonigarcia)
-            // This will automatically download and set up the correct driver executable.
-            WebDriverManager.chromedriver().setup();
-            System.out.println("WebDriverManager finished setting up ChromeDriver.");
+            // *** HARDCODED TO EDGE ***
+            // Browser type is explicitly set to Edge to simplify execution.
+            final String browserType = "edge";
+            // ***************************
 
-            // 2. Configure Chrome Options and Timeouts
-            ChromeOptions options = new ChromeOptions();
-          //  options.addArguments("--headless"); // Optional: run headless for CI or simplicity
-            options.addArguments("--no-sandbox");
-            options.addArguments("--disable-dev-shm-usage");
+            WebDriver driver = null;
+            try {
+                // 1. Setup and Initialization
+                if ("chrome".equalsIgnoreCase(browserType)) {
+                    WebDriverManager.chromedriver().setup();
+                    ChromeOptions options = new ChromeOptions();
+                    options.addArguments("--headless=new");
+                    driver = new ChromeDriver(options);
+                    System.out.println("ChromeDriver initialized successfully. Selenium 4.38.0");
+                } else if ("edge".equalsIgnoreCase(browserType)) {
+                    // This line (WebDriverManager.edgedriver().setup()) is where the driver
+                    // is downloaded and the system property is set.
+                    WebDriverManager.edgedriver().setup();
 
-            // --- IMPORTANT: Set a page load timeout that might fail in your scenario ---
-            // If you are facing a TimeoutException, this is a key place to configure it.
-            // Example: set a very short timeout to induce a failure in a slow environment
-            // driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(1));
-            // However, we will use the default for a basic repro.
+                    EdgeOptions options = new EdgeOptions();
+                    options.addArguments("--headless=new");
 
-            // 3. Initialize the WebDriver
-            driver = new ChromeDriver(options);
-            System.out.println("ChromeDriver initialized successfully. Selenium 4.38.0");
+                    // The next line (new EdgeDriver(options)) is where the NullPointerException
+                    // in your system's environment variables is triggered.
+                    driver = new EdgeDriver(options);
+                    System.out.println("EdgeDriver initialized successfully. Selenium 4.38.0");
+                } else {
+                    System.err.println("Unsupported browser type: " + browserType);
+                    return;
+                }
 
-            // 4. Execute the command that is failing (GET command)
-            System.out.println("Attempting to navigate to www.google.com...");
-            driver.get("https://www.google.com");
+                // 2. Timeout Configuration
+                driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(1));
+                System.out.println("Page load timeout set to 1 second to induce a failure.");
 
-            System.out.println("Successfully navigated to: " + driver.getTitle());
+                // 3. Command Execution
+                System.out.println("Attempting to navigate to www.google.com...");
+                driver.get("https://www.google.com");
 
-            // Add a small pause so you can see the browser/console output before quitting
-            System.out.println("Test successful. Waiting 5 seconds before quitting...");
-            Thread.sleep(Duration.ofSeconds(5).toMillis());
-
-        } catch (Exception e) {
-            System.err.println("\n\n--- !!! ISSUE REPRODUCER FAILED !!! ---");
-            System.err.println("An exception occurred during execution. This should provide the full logs:");
-
-            // This is where you want to ensure the verbose logs you enabled in the previous step appear.
-            e.printStackTrace();
-
-            // Ensure the application exits with a non-zero code to signal failure
-            System.exit(1);
-
-        } finally {
-            // 5. Always quit the driver
-            if (driver != null) {
-                driver.quit();
-                System.out.println("WebDriver quit successfully.");
+                System.out.println("Successfully navigated to Google (unexpected success).");
+            } catch (TimeoutException e) {
+                // Catch for the main issue you want to report (The TimeoutException)
+                System.out.println("\n--- !!! ISSUE REPRODUCER FAILED (Timeout) !!! ---");
+                System.out.println("Full command log captured:");
+                e.printStackTrace(System.out);
+            } catch (Exception e) {
+                // Catch for the environment-specific error (NullPointerException when checking system vars)
+                System.err.println("\n--- !!! FATAL ERROR (Environment/Driver Issue) !!! ---");
+                e.printStackTrace(System.err);
+            } finally {
+                if (driver != null) {
+                    driver.quit();
+                }
             }
-        }
-        System.out.println("--- Issue Reproducer Finished ---");
-        System.exit(0); // Gracefully shut down the Spring context
+        };
     }
 }

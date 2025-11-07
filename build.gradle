@@ -19,28 +19,57 @@ repositories {
 }
 
 dependencies {
-    // Spring Boot Starter (kept your version)
+    // Spring Boot Starter
     implementation 'org.springframework.boot:spring-boot-starter'
 
-    // --- Added for Selenium setup ---
     // 1. Selenium Java dependency (version 4.38.0 as requested)
     implementation 'org.seleniumhq.selenium:selenium-java:4.38.0'
 
     // 2. WebDriverManager dependency (Bonigarcia) for runtime driver installation
     implementation 'io.github.bonigarcia:webdrivermanager:5.8.0'
-    // ---------------------------------
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// *** FIX 1: Dependency Conflict Resolution ***
+// This block globally forces all transitive Selenium modules to 4.38.0
+configurations.all {
+    resolutionStrategy {
+        eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'org.seleniumhq.selenium' &&
+                    details.requested.name != 'selenium-java' &&
+                    details.requested.version < '4.38.0') {
+
+                details.useVersion '4.38.0'
+                logger.info("Forcing Selenium module {} to 4.38.0 (was {})",
+                        details.requested.name, details.requested.version)
+            }
+        }
+    }
+}
+
+
 tasks.named('test') {
     useJUnitPlatform()
 }
 
-// --- Added to easily run the main application class ---
+// *** FIX 2 & 3: ClassNotFoundException and Browser Selection ***
 tasks.register('run', JavaExec) {
+    // FIX 2: Ensures the Java code is compiled before we try to run it
+    dependsOn(configurations.runtimeClasspath)
+    dependsOn(project.tasks.getByName("classes"))
+
     classpath = sourceSets.main.runtimeClasspath
-    // This must match your main class in the Java file
+
+    // FIX 3: Sets the main class and passes the browser argument
     mainClass = 'com.example.SeleniumIssueReproducer'
+
+    // Add the debug flag to ensure full logs
+    systemProperty 'webdriver.remote.debug', 'true'
+
+    // Pass the 'browser' project property as a system property to the Java app
+    if (project.hasProperty('browser')) {
+        systemProperty 'browser', project.property('browser')
+    }
 }
